@@ -203,6 +203,10 @@
             padding: 1px 6px; border-radius: 3px; font-size: 9px;
             background: var(--claude-bg); color: var(--claude);
         }
+        .type-badge.checkbox { background: #f0e6ff; color: #6b21a8; }
+        .check-mark { font-size: 14px; margin-right: 4px; }
+        .section-item.checkbox-checked { border-left: 3px solid #16a34a; background: #f0fdf4; }
+        .section-item.checkbox-unchecked { border-left: 3px solid #d1d5db; }
         .hw-badge {
             padding: 1px 6px; border-radius: 3px; font-size: 9px;
             background: var(--hw-bg); color: var(--hw-color); border: 1px solid #d4c9a8;
@@ -543,17 +547,22 @@ function renderView(docId, view) {
 
 function renderSections(sections) {
     if (!sections.length) return '<div style="padding:20px;text-align:center;color:var(--text-muted)">No sections extracted</div>';
-    return sections.map(s => `
-        <div class="section-item ${s.is_handwritten ? 'handwritten' : ''}">
+    return sections.map(s => {
+        const isCb = s.is_checkbox || s.type === 'checkbox';
+        const cbClass = isCb ? (s.checked ? 'checkbox-checked' : 'checkbox-unchecked') : '';
+        const hwClass = s.is_handwritten ? 'handwritten' : '';
+        return `
+        <div class="section-item ${hwClass} ${cbClass}">
             <div class="section-label">
+                ${isCb ? `<span class="check-mark">${s.checked ? '☑' : '☐'}</span>` : ''}
                 ${s.label ? `<strong>${esc(s.label)}</strong>` : ''}
-                <span class="type-badge">${esc(s.type || 'text')}</span>
+                <span class="type-badge ${isCb ? 'checkbox' : ''}">${esc(s.type || 'text')}</span>
                 ${s.is_handwritten ? '<span class="hw-badge">✍️ handwritten</span>' : ''}
                 <span class="confidence conf-${s.confidence || 'medium'}">${s.confidence || ''}${s.google_confidence != null ? ' (' + s.google_confidence + ')' : ''}</span>
             </div>
-            <div class="section-content">${esc(s.content || '')}</div>
-        </div>
-    `).join('');
+            <div class="section-content">${esc(s.content || '') || '<em style="color:var(--text-muted)">(empty)</em>'}</div>
+        </div>`;
+    }).join('');
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }

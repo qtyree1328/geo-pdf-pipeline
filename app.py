@@ -73,7 +73,7 @@ def extract_claude(image_b64: str, api_key: str) -> dict:
 
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        max_tokens=8192,
         messages=[{
             "role": "user",
             "content": [
@@ -83,30 +83,41 @@ def extract_claude(image_b64: str, api_key: str) -> dict:
                 },
                 {
                     "type": "text",
-                    "text": """Extract ALL text from this image. Include both typed/printed text AND handwritten text.
+                    "text": """Extract EVERY piece of information from this document image. Be exhaustive.
+
+CRITICAL RULES:
+1. Every form field must be captured as a PAIR: the printed label AND its filled-in value (typed or handwritten)
+2. Checkboxes: report the label and whether it is CHECKED (X or ✓) or UNCHECKED (empty box). Use ☑ for checked, ☐ for unchecked.
+3. Tables: capture every row and column exactly as shown
+4. Headers and section titles: capture them as "header" type
+5. Handwritten entries: flag as is_handwritten=true
+6. Marginal notes, stamps, fine print, footer text: capture everything
+7. If a field is blank/empty, still include it with content="" so we know the field exists
 
 Return a JSON object:
 {
   "sections": [
     {
-      "type": "header" | "field" | "table" | "paragraph" | "handwritten_note" | "label" | "other",
-      "label": "<field label if applicable>",
-      "content": "<the extracted text>",
+      "type": "header" | "field" | "checkbox" | "table_cell" | "paragraph" | "handwritten_note" | "label_only" | "stamp" | "other",
+      "label": "<the printed form label, e.g. 'County', 'Well Depth', 'Hydrofractured?'>",
+      "content": "<the value filled in for that field, or the text content>",
       "is_handwritten": <boolean>,
+      "is_checkbox": <boolean — true if this is a checkbox field>,
+      "checked": <boolean or null — true if checked, false if unchecked, null if not a checkbox>,
       "confidence": "high" | "medium" | "low"
     }
   ],
   "tables": [
     {
-      "title": "<table title if visible>",
-      "headers": ["col1", "col2"],
-      "rows": [["val1", "val2"]]
+      "title": "<table title/section name>",
+      "headers": ["col1", "col2", ...],
+      "rows": [["val1", "val2", ...], ...]
     }
   ],
-  "raw_text": "<all text in reading order>"
+  "raw_text": "<all text on the page in reading order, preserving layout>"
 }
 
-Be thorough. Capture every piece of text — stamps, signatures, marginal notes, form labels AND filled-in values. For handwritten text, flag confidence level.""",
+IMPORTANT: For form documents, the "sections" array should read like a complete inventory of the form. Someone reading just the sections array should be able to reconstruct every question asked and every answer given on the form, including which checkboxes were checked.""",
                 },
             ],
         }],
@@ -276,7 +287,7 @@ def results_to_excel(doc_data: dict, output_path: str):
         fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
         hw_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
 
-        headers = ["Type", "Label", "Content", "Handwritten", "Confidence"]
+        headers = ["Type", "Label", "Content", "Handwritten", "Checkbox", "Checked", "Confidence"]
         for col, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=h)
             cell.font = header_font
@@ -292,11 +303,19 @@ def results_to_excel(doc_data: dict, output_path: str):
             c.alignment = cell_align
             is_hw = section.get("is_handwritten", False)
             ws.cell(row=row, column=4, value="Yes" if is_hw else "No").border = thin_border
-            ws.cell(row=row, column=5, value=section.get("confidence", "")).border = thin_border
+            is_cb = section.get("is_checkbox", False) or section.get("type") == "checkbox"
+            ws.cell(row=row, column=5, value="Yes" if is_cb else "No").border = thin_border
+            checked = section.get("checked")
+            ws.cell(row=row, column=6, value="☑" if checked is True else ("☐" if checked is False else "")).border = thin_border
+            ws.cell(row=row, column=7, value=section.get("confidence", "")).border = thin_border
             if is_hw:
-                for cc in range(1, 6):
+                for cc in range(1, 8):
                     ws.cell(row=row, column=cc).fill = hw_fill
-            for cc in range(1, 6):
+            cb_fill = PatternFill(start_color="F0E6FF", end_color="F0E6FF", fill_type="solid")
+            if is_cb:
+                for cc in range(1, 8):
+                    ws.cell(row=row, column=cc).fill = cb_fill
+            for cc in range(1, 8):
                 ws.cell(row=row, column=cc).font = cell_font
             row += 1
 
@@ -305,6 +324,8 @@ def results_to_excel(doc_data: dict, output_path: str):
         ws.column_dimensions["C"].width = 60
         ws.column_dimensions["D"].width = 14
         ws.column_dimensions["E"].width = 12
+        ws.column_dimensions["F"].width = 10
+        ws.column_dimensions["G"].width = 12
 
     # Raw text comparison sheet
     ws_raw = wb.create_sheet("Raw Text Comparison")
