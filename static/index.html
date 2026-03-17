@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geo PDF Pipeline</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f3f0;
+            --surface: #ffffff;
+            --surface-hover: #fafaf8;
+            --border: #e2ddd5;
+            --border-light: #ede9e3;
+            --text: #2c2a26;
+            --text-secondary: #6b6560;
+            --text-muted: #9e9890;
+            --accent: #2B5B84;
+            --accent-light: #3a7ab5;
+            --accent-bg: #eef4fa;
+            --success: #3d7a4a;
+            --success-bg: #edf5ef;
+            --warning: #8a6d2b;
+            --warning-bg: #fdf5e6;
+            --error: #9b3b3b;
+            --error-bg: #fceeed;
+            --handwritten: #6b5b3a;
+            --handwritten-bg: #faf6ed;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
+            --radius: 10px;
+            --radius-lg: 14px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ─── Header ─── */
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+        }
+
+        .logo h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .logo span {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* ─── Layout ─── */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        /* ─── Upload Zone ─── */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            background: var(--surface);
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 32px;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-bg);
+        }
+
+        .upload-zone.dragover {
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.7;
+        }
+
+        .upload-zone h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .upload-zone input[type="file"] { display: none; }
+
+        /* ─── Document Card ─── */
+        .doc-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .doc-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .doc-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .doc-title .file-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--error-bg);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .doc-title h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .doc-title .meta {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* ─── Buttons ─── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover { background: var(--accent-light); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-secondary {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover { background: var(--surface-hover); border-color: var(--accent); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover { background: #4a8f59; }
+
+        /* ─── Status Badge ─── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-uploaded { background: var(--accent-bg); color: var(--accent); }
+        .badge-processing { background: var(--warning-bg); color: var(--warning); }
+        .badge-complete { background: var(--success-bg); color: var(--success); }
+        .badge-error { background: var(--error-bg); color: var(--error); }
+
+        .badge-processing::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--warning);
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ─── Progress Bar ─── */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border-light);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        /* ─── Results ─── */
+        .results-container {
+            margin-top: 20px;
+        }
+
+        .page-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .page-tab {
+            padding: 10px 18px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+
+        .page-tab:hover { color: var(--text); }
+        .page-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .view-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .view-tab {
+            padding: 8px 16px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .view-tab:hover { border-color: var(--accent); color: var(--text); }
+        .view-tab.active {
+            background: var(--accent-bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ─── Extracted Data Sections ─── */
+        .section-item {
+            padding: 14px 18px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: background 0.15s ease;
+        }
+
+        .section-item:hover { background: var(--surface-hover); }
+
+        .section-item.handwritten {
+            border-left: 3px solid var(--handwritten);
+            background: var(--handwritten-bg);
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-label .type-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            background: var(--accent-bg);
+            color: var(--accent);
+        }
+
+        .section-label .hw-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            background: var(--handwritten-bg);
+            color: var(--handwritten);
+            border: 1px solid #d4c9a8;
+        }
+
+        .section-label .confidence {
+            margin-left: auto;
+            font-size: 10px;
+        }
+
+        .confidence-high { color: var(--success); }
+        .confidence-medium { color: var(--warning); }
+        .confidence-low { color: var(--error); }
+
+        .section-content {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .section-item.handwritten .section-content {
+            font-family: 'JetBrains Mono', monospace;
+            font-style: italic;
+            color: var(--handwritten);
+        }
+
+        /* ─── Tables ─── */
+        .extracted-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 13px;
+        }
+
+        .extracted-table th {
+            background: var(--accent);
+            color: white;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .extracted-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .extracted-table tr:hover td { background: var(--surface-hover); }
+
+        /* ─── Raw Text ─── */
+        .raw-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            background: #2c2a26;
+            color: #e8e3db;
+            padding: 24px;
+            border-radius: var(--radius);
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* ─── Stats ─── */
+        .stats-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            flex: 1;
+            padding: 16px;
+            background: var(--surface-hover);
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ─── Empty State ─── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-state p { font-size: 14px; }
+
+        /* ─── Spinner ─── */
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            header { padding: 16px; }
+            .upload-zone { padding: 32px 20px; }
+            .stats-row { flex-wrap: wrap; }
+            .stat { min-width: 120px; }
+            .doc-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <div class="logo-icon">📄</div>
+            <div>
+                <h1>Geo PDF Pipeline</h1>
+                <span>Extract text from any PDF — handwritten &amp; typed</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Upload Zone -->
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">📂</div>
+            <h2>Drop a PDF here or click to upload</h2>
+            <p>Supports scanned documents, handwritten forms, typed reports</p>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+
+        <!-- Document List -->
+        <div id="docList"></div>
+    </div>
+
+    <script>
+        // ─── State ───
+        let currentDoc = null;
+        let activePage = 0;
+        let activeView = 'structured';
+
+        // ─── Upload ───
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', e => { if (e.target.files[0]) uploadFile(e.target.files[0]); });
+
+        async function uploadFile(file) {
+            const form = new FormData();
+            form.append('file', file);
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.error) return alert(data.error);
+                renderDocCard(data);
+            } catch (err) {
+                alert('Upload failed: ' + err.message);
+            }
+        }
+
+        // ─── Render Document Card ───
+        function renderDocCard(doc) {
+            const docList = document.getElementById('docList');
+            const card = document.createElement('div');
+            card.className = 'doc-card';
+            card.id = `doc-${doc.id}`;
+            card.innerHTML = `
+                <div class="doc-header">
+                    <div class="doc-title">
+                        <div class="file-icon">📑</div>
+                        <div>
+                            <h3>${doc.filename}</h3>
+                            <div class="meta">Uploaded just now</div>
+                        </div>
+                    </div>
+                    <div class="doc-actions">
+                        <span class="badge badge-uploaded" id="badge-${doc.id}">Ready</span>
+                        <button class="btn btn-primary" id="process-${doc.id}" onclick="processDoc('${doc.id}')">
+                            🔍 Extract Text
+                        </button>
+                    </div>
+                </div>
+                <div id="progress-${doc.id}" style="display:none">
+                    <div class="progress-bar"><div class="progress-fill" id="fill-${doc.id}" style="width:0%"></div></div>
+                    <p style="font-size:13px;color:var(--text-muted)" id="status-${doc.id}">Starting extraction...</p>
+                </div>
+                <div id="results-${doc.id}"></div>
+            `;
+            docList.prepend(card);
+        }
+
+        // ─── Process Document ───
+        async function processDoc(docId) {
+            const btn = document.getElementById(`process-${docId}`);
+            const badge = document.getElementById(`badge-${docId}`);
+            const progress = document.getElementById(`progress-${docId}`);
+            const status = document.getElementById(`status-${docId}`);
+            const fill = document.getElementById(`fill-${docId}`);
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Processing...';
+            badge.className = 'badge badge-processing';
+            badge.textContent = 'Processing';
+            progress.style.display = 'block';
+
+            // Animate progress bar
+            let pct = 0;
+            const interval = setInterval(() => {
+                pct = Math.min(pct + Math.random() * 8, 90);
+                fill.style.width = pct + '%';
+                if (pct < 30) status.textContent = 'Converting PDF pages to images...';
+                else if (pct < 70) status.textContent = 'Extracting text with Claude Vision...';
+                else status.textContent = 'Parsing extracted data...';
+            }, 800);
+
+            try {
+                const res = await fetch(`/api/process/${docId}`, { method: 'POST' });
+                const data = await res.json();
+                clearInterval(interval);
+
+                if (data.error) {
+                    badge.className = 'badge badge-error';
+                    badge.textContent = 'Error';
+                    status.textContent = 'Error: ' + data.error;
+                    fill.style.width = '100%';
+                    fill.style.background = 'var(--error)';
+                    btn.innerHTML = '🔍 Retry';
+                    btn.disabled = false;
+                    return;
+                }
+
+                fill.style.width = '100%';
+                badge.className = 'badge badge-complete';
+                badge.textContent = 'Complete';
+                progress.style.display = 'none';
+                btn.style.display = 'none';
+
+                // Add export button
+                const actions = btn.parentElement;
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'btn btn-success';
+                exportBtn.innerHTML = '📊 Export Excel';
+                exportBtn.onclick = () => window.location.href = `/api/export/${docId}`;
+                actions.appendChild(exportBtn);
+
+                renderResults(docId, data);
+
+            } catch (err) {
+                clearInterval(interval);
+                badge.className = 'badge badge-error';
+                badge.textContent = 'Error';
+                status.textContent = 'Error: ' + err.message;
+                btn.innerHTML = '🔍 Retry';
+                btn.disabled = false;
+            }
+        }
+
+        // ─── Render Results ───
+        function renderResults(docId, data) {
+            const container = document.getElementById(`results-${docId}`);
+            const pages = data.pages || [];
+
+            const totalSections = pages.reduce((a, p) => a + (p.sections?.length || 0), 0);
+            const totalTables = pages.reduce((a, p) => a + (p.tables?.length || 0), 0);
+            const hwCount = pages.reduce((a, p) => a + (p.sections?.filter(s => s.is_handwritten)?.length || 0), 0);
+
+            container.innerHTML = `
+                <div class="stats-row">
+                    <div class="stat">
+                        <div class="stat-value">${pages.length}</div>
+                        <div class="stat-label">Pages</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${totalSections}</div>
+                        <div class="stat-label">Sections Found</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${totalTables}</div>
+                        <div class="stat-label">Tables</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${hwCount}</div>
+                        <div class="stat-label">Handwritten</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${data.processing_time}s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                </div>
+
+                <div class="page-tabs" id="pageTabs-${docId}">
+                    ${pages.map((p, i) => `<button class="page-tab ${i === 0 ? 'active' : ''}" onclick="switchPage('${docId}', ${i}, ${JSON.stringify(pages).length})"  data-page="${i}">Page ${p.page_number || i + 1}</button>`).join('')}
+                </div>
+
+                <div class="view-tabs">
+                    <button class="view-tab active" onclick="switchView('${docId}', 'structured', this)">Structured</button>
+                    <button class="view-tab" onclick="switchView('${docId}', 'tables', this)">Tables</button>
+                    <button class="view-tab" onclick="switchView('${docId}', 'raw', this)">Raw Text</button>
+                </div>
+
+                <div id="pageContent-${docId}"></div>
+            `;
+
+            // Store pages data on the container
+            container.dataset.pages = JSON.stringify(pages);
+            showPage(docId, 0);
+        }
+
+        function switchPage(docId, pageIdx) {
+            const tabs = document.querySelectorAll(`#pageTabs-${docId} .page-tab`);
+            tabs.forEach((t, i) => t.classList.toggle('active', i === pageIdx));
+            showPage(docId, pageIdx);
+        }
+
+        function switchView(docId, view, btn) {
+            activeView = view;
+            btn.parentElement.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            const container = document.getElementById(`results-${docId}`);
+            const pages = JSON.parse(container.dataset.pages || '[]');
+            const activeTab = container.querySelector('.page-tab.active');
+            const idx = activeTab ? parseInt(activeTab.dataset.page) : 0;
+            showPage(docId, idx);
+        }
+
+        function showPage(docId, pageIdx) {
+            const container = document.getElementById(`results-${docId}`);
+            const pages = JSON.parse(container.dataset.pages || '[]');
+            const page = pages[pageIdx];
+            if (!page) return;
+
+            const content = document.getElementById(`pageContent-${docId}`);
+
+            if (activeView === 'structured') {
+                const sections = page.sections || [];
+                if (!sections.length) {
+                    content.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No structured sections found on this page</p></div>';
+                    return;
+                }
+                content.innerHTML = sections.map(s => `
+                    <div class="section-item ${s.is_handwritten ? 'handwritten' : ''}">
+                        <div class="section-label">
+                            ${s.label ? `<strong>${escHtml(s.label)}</strong>` : ''}
+                            <span class="type-badge">${escHtml(s.type || 'text')}</span>
+                            ${s.is_handwritten ? '<span class="hw-badge">✍️ Handwritten</span>' : ''}
+                            <span class="confidence confidence-${s.confidence || 'medium'}">${s.confidence || 'medium'}</span>
+                        </div>
+                        <div class="section-content">${escHtml(s.content || '')}</div>
+                    </div>
+                `).join('');
+
+            } else if (activeView === 'tables') {
+                const tables = page.tables || [];
+                if (!tables.length) {
+                    content.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>No tables found on this page</p></div>';
+                    return;
+                }
+                content.innerHTML = tables.map(t => `
+                    ${t.title ? `<h4 style="margin:12px 0 8px;font-size:15px">${escHtml(t.title)}</h4>` : ''}
+                    <table class="extracted-table">
+                        <thead><tr>${(t.headers || []).map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead>
+                        <tbody>${(t.rows || []).map(r => `<tr>${r.map(v => `<td>${escHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+                    </table>
+                `).join('');
+
+            } else {
+                content.innerHTML = `<div class="raw-text">${escHtml(page.raw_text || 'No raw text extracted')}</div>`;
+            }
+        }
+
+        function escHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>
